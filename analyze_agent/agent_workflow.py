@@ -19,7 +19,7 @@ from analyze_agent.news_retriever import (
 )
 
 # 載入環境變數
-ENV_PATH = Path(__file__).resolve().parent / ".env"
+ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(ENV_PATH)
 
 # 初始化 Azure OpenAI
@@ -1203,7 +1203,9 @@ def generate_insufficient_report(
     news_list,
     assessment,
     searched_queries,
-    crawl_summary
+    crawl_summary,
+    product=None,
+    period=None
 ):
     report = {
         "status": "insufficient_data",
@@ -1211,6 +1213,8 @@ def generate_insufficient_report(
         "total_news_found": len(news_list),
         "searched_queries": searched_queries,
         "crawl_summary": crawl_summary,
+        "product": product,
+        "period": period,
         "reason": assessment.get("reason", ""),
         "missing_information": assessment.get(
             "missing_information", []
@@ -1456,7 +1460,9 @@ def run_agent(query: str, product=None, start_date=None, end_date=None):
             news_list=news_list,
             assessment=assessment,
             searched_queries=searched_queries,
-            crawl_summary=crawl_summary
+            crawl_summary=crawl_summary,
+            product=product,
+            period=period_filter
         )
 
     # 逐篇分析新聞

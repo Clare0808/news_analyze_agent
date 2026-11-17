@@ -1,13 +1,13 @@
 import os
 import json
+from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from analyze_agent.news_retriever import search_news
 from analyze_agent.news_evidence import article_body, evidence_id, find_quote, quote_passages
 
 # 載入環境變數與建立 Azure OpenAI 連線
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 openai_client = OpenAI(
     base_url=os.environ["AZURE_OPENAI_ENDPOINT"],
@@ -306,40 +306,3 @@ def analyze_news(
     if not verified and result["relevance"] in {"直接相關", "間接相關"}:
         raise ValueError("相關新聞沒有可核對的原文證據")
     return result
-
-if __name__ == "__main__":
-    # 測試新聞檢索與分析
-    query = "近期美債殖利率上升對保險業有什麼影響？"
-
-    news_list = search_news(
-        query=query,
-        top_k=5,
-        recent_days=30,
-    )
-
-    if not news_list:
-        print("沒有找到符合條件的新聞。")
-
-    print(f"檢索到 {len(news_list)} 篇新聞。")
-
-    for index, news in enumerate(news_list, start=1):
-        print("\n" + "=" * 60)
-        print(f"第 {index} 篇新聞")
-        print(f"標題：{news.get('title', '')}")
-        print(f"來源：{news.get('source', '')}")
-        print(f"日期：{news.get('date', '')}")
-        print(f"網址：{news.get('url', '')}")
-
-        try:
-            result = analyze_news(query, news)
-            print("\n分析結果：")
-            print(
-                json.dumps(
-                    result,
-                    ensure_ascii=False,
-                    indent=2,
-                )
-            )
-
-        except Exception as e:
-            print(f"這篇新聞分析失敗：{e}")

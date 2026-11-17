@@ -1,9 +1,6 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import os
-from dotenv import load_dotenv
-import chromadb
-from sentence_transformers import SentenceTransformer
 
 TAIPEI_TZ = ZoneInfo("Asia/Taipei")
 
@@ -159,46 +156,3 @@ def get_all_latest_news_times(collection, batch_size=200):
         offset += len(metadatas)
 
     return latest_times
-
-
-if __name__ == "__main__":
-    load_dotenv()
-
-    # 載入與建置資料庫時相同的 Embedding 模型
-    model = SentenceTransformer("BAAI/bge-m3")
-
-    # 連線至 Chroma Cloud
-    client = chromadb.CloudClient(
-        api_key=os.environ["CHROMA_API_KEY"],
-        tenant=os.environ["CHROMA_TENANT"],
-        database=os.environ["DATABASE_NAME"],
-    )
-
-    collection = client.get_collection(
-        name="insurance_news"
-    )
-
-    test_cases = [
-        ("中央社", "國際", ""),
-        ("中央社", "生活", ""),
-        ("經濟日報", "產業", "產業熱點"),
-        ("經濟日報", "金融", "保險"),
-        ("財訊", "金融圈", ""),
-        ("財訊", "科技", ""),
-    ]
-
-    for source, category, subcategory in test_cases:
-        latest_times = get_all_latest_news_times(collection)
-
-        print(f"共取得 {len(latest_times)} 個分類的更新紀錄")
-
-        for key, latest_time in sorted(latest_times.items()):
-            source, category, subcategory = key
-
-            print(
-                f"{source} / {category} / "
-                f"{subcategory or '(無子分類)'}"
-            )
-            print(f"最新時間：{latest_time}")
-            print("-" * 50)
-

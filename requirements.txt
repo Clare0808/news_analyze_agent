@@ -1,0 +1,7 @@
+beautifulsoup4
+chromadb
+openai
+python-dotenv
+requests
+sentence-transformers
+tzdata

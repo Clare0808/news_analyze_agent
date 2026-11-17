@@ -6,14 +6,15 @@ from zoneinfo import ZoneInfo
 import chromadb
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
+
 from analyze_agent.news_evidence import prepare_content, relevant_passages
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-ENV_PATH = Path(__file__).resolve().parent / ".env"
+ENV_PATH = PROJECT_ROOT / ".env"
 
 load_dotenv(ENV_PATH)
 
-DATABASE_NAME = "agent_create"
+DATABASE_NAME = os.getenv("DATABASE_NAME", "agent_create")
 COLLECTION_NAME = "insurance_news"
 EMBEDDING_MODEL = "BAAI/bge-m3"
 TIMEZONE = ZoneInfo("Asia/Taipei")
@@ -187,7 +188,7 @@ def search_news(
             "distance": distance,
         })
 
-    # Distance remains the tie breaker: lexical overlap is not an uncalibrated cutoff.
+    # 距離是重要依據，詞彙重合度並非一種未經校準的判定閾值
     news_list.sort(key=lambda item: (-item["relevance_score"], item["distance"]))
     selected_news = []
     seen_sources = set()
@@ -198,62 +199,3 @@ def search_news(
     selected_ids = {item["id"] for item in selected_news}
     selected_news.extend(item for item in news_list if item["id"] not in selected_ids)
     return selected_news[:top_k]
-
-# 顯示檢索結果
-def print_results(title, news_list):
-    print(f"\n{'=' * 60}")
-    print(title)
-    print(f"找到 {len(news_list)} 篇新聞")
-    print("=" * 60)
-
-    for i, news in enumerate(news_list, start=1):
-
-        print(f"\n--- 第 {i} 篇新聞 ---")
-        print("標題：", news["title"])
-        print("來源：", news["source"])
-        print("日期：", news["date"])
-        print("網址：", news["url"])
-        print("距離：", news["distance"])
-        print("內容：", news["content"][:300])
-
-if __name__ == "__main__":
-    client, collection = initialize_database()
-
-    model = initialize_model()
-
-    print(f"已連接資料庫：{DATABASE_NAME}")
-    print(f"Collection：{COLLECTION_NAME}")
-    print(f"目前新聞筆數：{collection.count()}")
-
-    # 測試一：不限制日期
-    results_all = search_news(
-        query="近期美債殖利率上升的相關新聞有哪些？",
-        model=model,
-        collection=collection,
-        top_k=5,
-    )
-
-    print_results("測試一：不限制日期", results_all)
-
-    # 測試二：最近 7 天
-    results_7days = search_news(
-        query="近期美債殖利率上升的相關新聞有哪些？",
-        model=model,
-        collection=collection,
-        top_k=5,
-        recent_days=7,
-    )
-
-    print_results("測試二：最近 7 天", results_7days)
-
-    # 測試三：指定日期區間
-    results_custom = search_news(
-        query="近期美債殖利率上升的相關新聞有哪些？",
-        model=model,
-        collection=collection,
-        top_k=5,
-        start_date="2026-10-01",
-        end_date="2026-10-20",
-    )
-
-    print_results("測試三：指定日期區間", results_custom)

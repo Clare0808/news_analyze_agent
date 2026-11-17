@@ -47,8 +47,9 @@ def get_news_list(category, page):
         source_url, 
         headers=HEADERS,
         json=data, 
-        verify=False
+        timeout=(5, 30)
     )
+    resp.raise_for_status()
     news_list = resp.json()["ResultData"]["Items"]
 
     return news_list

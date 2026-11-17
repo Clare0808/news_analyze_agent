@@ -1,21 +1,28 @@
-"""Pure helpers shared by indexing, retrieval and evidence validation."""
-
 import hashlib
 import re
 from difflib import SequenceMatcher
 
+PAYWALL_MARKERS = (
+    "此為付費文章", 
+    "會員限定", 
+    "會員專屬", 
+    "訂閱後即可閱讀", 
+    "解鎖全文", 
+    "登入後即可閱讀全文", 
+    "獨家付費內容"
+)
 
-PAYWALL_MARKERS = ("此為付費文章", "會員限定", "會員專屬", "訂閱後即可閱讀", "解鎖全文", "登入後即可閱讀全文", "獨家付費內容")
-NOISE_LINES = ("未經授權，請勿複製轉貼文章內容", "歡迎用「轉貼」或「分享」的方式轉傳文章連結")
-
+NOISE_LINES = (
+    "未經授權，請勿複製轉貼文章內容", 
+    "歡迎用「轉貼」或「分享」的方式轉傳文章連結"
+)
 
 def article_body(document):
     text = str(document or "")
     return text.split("內文：", 1)[-1] if "內文：" in text[:150] else text
 
-
+# 傳回經過清理的正文內容及狀態，且不預設接受付費牆
 def prepare_content(title, content):
-    """Return cleaned body and status without silently accepting paywalls."""
     body = article_body(content).strip()
     if (not body or (any(marker in body for marker in PAYWALL_MARKERS)
                     and len(body) < 300)):
@@ -28,9 +35,8 @@ def prepare_content(title, content):
         return "", "擷取失敗"
     return cleaned, "正常" if len(cleaned) >= 300 else "需要清理"
 
-
+# 將原始文件拆分為互不重疊且保留偏移量的片段
 def passages(text, max_length=700):
-    """Split the original document into non-overlapping, offset-preserving passages."""
     result = []
     for match in re.finditer(r"[^\n。！？]+[。！？]?", str(text or "")):
         sentence = match.group().strip()
@@ -42,7 +48,6 @@ def passages(text, max_length=700):
             result.append({"start": start + offset, "end": start + offset + len(part), "text": part})
     return result
 
-
 def relevant_passages(query, text, limit=4):
     candidates = passages(text)
     if len(candidates) <= limit:
@@ -51,9 +56,8 @@ def relevant_passages(query, text, limit=4):
     ranked = sorted(candidates, key=lambda p: (-sum(p["text"].lower().count(term) for term in terms), p["start"]))
     return sorted(ranked[:limit], key=lambda p: p["start"])
 
-
+# 用有界連續區間覆蓋整篇文章，以便進行引文檢查
 def quote_passages(text, limit=12):
-    """Cover the entire article with bounded contiguous spans for quote checking."""
     body = str(text or "")
     if len(body) <= limit * 1000:
         return [{"start": 0, "end": len(body), "text": body}]
@@ -61,9 +65,8 @@ def quote_passages(text, limit=12):
              "text": body[start:start + 1000]}
             for start in range(0, min(len(body), limit * 1000), 1000)]
 
-
+# 在可見內文中定位精確引文，包括重複出現的內容
 def find_quote(text, quote, visible_passages=None):
-    """Locate an exact quote within visible text, including repeated occurrences."""
     quote = str(quote or "").strip()
     if not quote:
         return None
@@ -78,13 +81,11 @@ def find_quote(text, quote, visible_passages=None):
         start = body.find(quote, start + 1)
     return None
 
-
 def evidence_id(news_id, start, end):
     return hashlib.sha256(f"{news_id}:{start}:{end}".encode("utf-8")).hexdigest()[:20]
 
-
+# 保守分組：兩天內出現相同的網址或幾乎完全相同的標題
 def group_events(news_list):
-    """Conservative grouping: same URL or near-identical title within two days."""
     from datetime import datetime
 
     groups = []
